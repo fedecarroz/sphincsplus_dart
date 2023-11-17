@@ -1,0 +1,17 @@
+name: sphincsplus
+description: >-
+  A dart binding for SPHINCS+ signature algorithm
+version: 0.0.1
+repository: https://github.com/fedecarroz/sphincsplus_dart
+topics:
+  - cryptography
+
+environment:
+  sdk: ^3.0.0
+
+dependencies:
+  path: ^1.8.3
+
+dev_dependencies:
+  lints: ^3.0.0
+  test: ^1.21.0
