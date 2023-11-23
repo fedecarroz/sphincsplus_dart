@@ -1,7 +1,8 @@
 import 'dart:ffi';
+import 'dart:typed_data';
 
+import 'package:ffi/ffi.dart';
 import 'package:sphincsplus/sphincsplus_dart.dart';
-import 'package:sphincsplus/src/helpers/ffi_run_func.dart';
 
 class SpxSigner {
   /// Signer parameters
@@ -13,37 +14,60 @@ class SpxSigner {
   /// SPHINCS+ Signer
   SpxSigner({required this.params}) : _lib = getLib(params);
 
-  /// Returns the length of a [SecretKey]
-  int get skLength => ffiRunIntFunc(_lib, 'crypto_sign_secretkeybytes');
+  /// Returns the length of a secret key
+  int get skLength => ffiSimpleIntFunc(_lib, 'crypto_sign_secretkeybytes');
 
-  /// Returns the length of a [PublicKey]
-  int get pkLength => ffiRunIntFunc(_lib, 'crypto_sign_publickeybytes');
+  /// Returns the length of a public key
+  int get pkLength => ffiSimpleIntFunc(_lib, 'crypto_sign_publickeybytes');
 
-  /// Returns the length of a [Signature]
-  int get signatureLength => ffiRunIntFunc(_lib, 'crypto_sign_bytes');
+  /// Returns the length of a signature
+  int get signatureLength => ffiSimpleIntFunc(_lib, 'crypto_sign_bytes');
 
   /// Returns the length of the seed required to generate a key pair
-  int get seedLength => ffiRunIntFunc(_lib, 'crypto_sign_seedbytes');
+  int get seedLength => ffiSimpleIntFunc(_lib, 'crypto_sign_seedbytes');
 
-  /// Generates a SPHINCS+ key pair ([PublicKey], [SecretKey]) given a seed
-  /// Format sk: [SK_SEED || SK_PRF || PUB_SEED || root]
-  /// Format pk: [root || PUB_SEED]
-  (PublicKey, SecretKey) generateKeyPair({int? seed}) {
-    // TODO: implement
-    return (PublicKey(), SecretKey());
+  /// Generates a SPHINCS+ key pair (public key, secret key)
+  (Uint8List, Uint8List) generateKeyPair({int? seed}) {
+    Pointer<Uint8> pkPointer = calloc.allocate(pkLength);
+    Pointer<Uint8> skPointer = calloc.allocate(skLength);
+
+    final Function fn;
+    if (seed != null) {
+      fn = _lib.lookupFunction<GenKeyPairSeedFunc, GenKeyPairSeed>(
+        'crypto_sign_seed_keypair',
+      );
+      Pointer<Uint8> seedPointer = calloc.allocate(seedLength);
+      seedPointer.value = seed;
+      fn(pkPointer, skPointer, seedPointer);
+      calloc.free(seedPointer);
+    } else {
+      fn = _lib.lookupFunction<GenKeyPairFunc, GenKeyPair>(
+        'crypto_sign_keypair',
+      );
+      fn(pkPointer, skPointer);
+    }
+
+    final Uint8List pk = pkPointer.asTypedList(pkLength);
+    final Uint8List sk = skPointer.asTypedList(skLength);
+
+    calloc
+      ..free(pkPointer)
+      ..free(skPointer);
+
+    return (pk, sk);
   }
 
-  /// Returns a tuple ([Signature], [String]) followed by the message
-  (Signature, String) sign(String message, SecretKey secretKey) {
+  /// Returns a signature followed by the message
+  (Uint8List, Uint8List) sign(Uint8List message, Uint8List secretKey) {
     // TODO: implement
-    return (Signature(), '');
+    return (Uint8List(signatureLength), Uint8List(message.length));
   }
 
-  /// Verifies a given signature-message pair under a given [PublicKey]
+  /// Verifies a given signature-message pair under a given public key
   bool verify(
-    String message,
-    Signature signature,
-    PublicKey publicKey,
+    Uint8List message,
+    Uint8List signature,
+    Uint8List publicKey,
   ) {
     // TODO: implement
     return true;

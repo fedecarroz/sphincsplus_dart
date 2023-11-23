@@ -1,2 +1,2 @@
+export 'helpers/ffi_type_def.dart';
 export 'helpers/get_lib.dart';
-export 'helpers/ffi_run_func.dart';
