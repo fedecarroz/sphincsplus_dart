@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:ffi';
 import 'dart:typed_data';
 
@@ -28,15 +29,15 @@ class SpxSigner {
 
   /// Generates a SPHINCS+ key pair (public key, secret key)
   (Uint8List, Uint8List) generateKeyPair({int? seed}) {
-    Pointer<Uint8> pkPointer = calloc.allocate(pkLength);
-    Pointer<Uint8> skPointer = calloc.allocate(skLength);
+    final Pointer<Uint8> pkPointer = calloc.allocate<Uint8>(pkLength);
+    final Pointer<Uint8> skPointer = calloc.allocate<Uint8>(skLength);
 
     final Function fn;
     if (seed != null) {
       fn = _lib.lookupFunction<GenKeyPairSeedFunc, GenKeyPairSeed>(
         'crypto_sign_seed_keypair',
       );
-      Pointer<Uint8> seedPointer = calloc.allocate(seedLength);
+      final Pointer<Uint8> seedPointer = calloc.allocate(seedLength);
       seedPointer.value = seed;
       fn(pkPointer, skPointer, seedPointer);
       calloc.free(seedPointer);
@@ -57,13 +58,39 @@ class SpxSigner {
     return (pk, sk);
   }
 
-  /// Returns a signature followed by the message
-  (Uint8List, Uint8List) sign(Uint8List message, Uint8List secretKey) {
-    // TODO: implement
-    return (Uint8List(signatureLength), Uint8List(message.length));
+  /// Returns the signed message
+  Uint8List sign(String message, Uint8List secretKey) {
+    final int mLength = message.length;
+
+    final int smLength = mLength + signatureLength;
+    final Pointer<Uint64> smlen = calloc.allocate<Uint64>(sizeOf<Uint64>());
+    smlen.value = smLength;
+
+    final Pointer<Uint8> sm = calloc.allocate<Uint8>(smLength);
+
+    final Pointer<Uint8> m = calloc.allocate<Uint8>(mLength);
+    final Uint8List msgBytes = utf8.encode(message);
+    for (var i = 0; i < mLength; i++) {
+      m[i] = msgBytes[i];
+    }
+
+    final Pointer<Uint8> sk = calloc.allocate<Uint8>(skLength);
+
+    final fn = _lib.lookupFunction<SignFunc, Sign>('crypto_sign');
+    fn(sm, smlen, m, mLength, sk);
+
+    final Uint8List signature = sm.asTypedList(smLength);
+
+    calloc
+      ..free(sm)
+      ..free(smlen)
+      ..free(m)
+      ..free(sk);
+
+    return signature;
   }
 
-  /// Verifies a given signature-message pair under a given public key
+  /// Verifies a given signed message under a given public key
   bool verify(
     Uint8List message,
     Uint8List signature,
