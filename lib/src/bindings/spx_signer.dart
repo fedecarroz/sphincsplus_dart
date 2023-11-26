@@ -37,7 +37,7 @@ class SpxSigner {
       fn = _lib.lookupFunction<GenKeyPairSeedFunc, GenKeyPairSeed>(
         'crypto_sign_seed_keypair',
       );
-      final Pointer<Uint8> seedPointer = calloc.allocate(seedLength);
+      final Pointer<Uint8> seedPointer = calloc.allocate<Uint8>(seedLength);
       seedPointer.value = seed;
       fn(pkPointer, skPointer, seedPointer);
       calloc.free(seedPointer);
@@ -60,9 +60,12 @@ class SpxSigner {
 
   /// Returns the signed message
   Uint8List sign(String message, Uint8List secretKey) {
+    if (secretKey.length != skLength) {
+      throw Exception('Invalid secret key!');
+    }
     final int mLength = message.length;
-
     final int smLength = mLength + signatureLength;
+
     final Pointer<Uint64> smlen = calloc.allocate<Uint64>(sizeOf<Uint64>());
     smlen.value = smLength;
 
@@ -75,11 +78,14 @@ class SpxSigner {
     }
 
     final Pointer<Uint8> sk = calloc.allocate<Uint8>(skLength);
+    for (var i = 0; i < skLength; i++) {
+      sk[i] = secretKey[i];
+    }
 
     final fn = _lib.lookupFunction<SignFunc, Sign>('crypto_sign');
     fn(sm, smlen, m, mLength, sk);
 
-    final Uint8List signature = sm.asTypedList(smLength);
+    final Uint8List signedMessage = sm.asTypedList(smLength);
 
     calloc
       ..free(sm)
@@ -87,16 +93,55 @@ class SpxSigner {
       ..free(m)
       ..free(sk);
 
-    return signature;
+    return signedMessage;
   }
 
   /// Verifies a given signed message under a given public key
+  // TODO: fix "signature not valid error"
   bool verify(
-    Uint8List message,
-    Uint8List signature,
+    String message,
+    Uint8List signedMessage,
     Uint8List publicKey,
   ) {
-    // TODO: implement
-    return true;
+    final int mLength = message.length;
+    final int smLength = mLength + signatureLength;
+    if (signedMessage.length != smLength) {
+      return false;
+    }
+    if (publicKey.length != pkLength) {
+      throw Exception('Invalid public key!');
+    }
+
+    final Pointer<Uint64> mlen = calloc.allocate<Uint64>(sizeOf<Uint64>());
+    mlen.value = mLength;
+
+    final Pointer<Uint8> m = calloc.allocate<Uint8>(mLength);
+    final Uint8List msgBytes = utf8.encode(message);
+    for (var i = 0; i < mLength; i++) {
+      m[i] = msgBytes[i];
+    }
+
+    final Pointer<Uint8> sm = calloc.allocate<Uint8>(smLength);
+    for (var i = 0; i < smLength; i++) {
+      sm[i] = signedMessage[i];
+    }
+
+    final Pointer<Uint8> pk = calloc.allocate<Uint8>(pkLength);
+    for (var i = 0; i < pkLength; i++) {
+      pk[i] = publicKey[i];
+    }
+
+    final fn = _lib.lookupFunction<VerifySignatureFunc, VerifySignature>(
+      'crypto_sign_open',
+    );
+    int result = fn(m, mlen, sm, smLength, pk);
+
+    calloc
+      ..free(m)
+      ..free(mlen)
+      ..free(sm)
+      ..free(pk);
+
+    return result == 0;
   }
 }

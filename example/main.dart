@@ -17,5 +17,9 @@ void main() {
 
   final String message = 'SPHINCS+ for dart';
   final Uint8List signedMessage = spxSigner.sign(message, secretKey);
-  print('Signed message: $signedMessage');
+  print('Signed message: ${signedMessage.length}');
+
+  spxSigner.verify(message, signedMessage, publicKey)
+      ? print('The signature is valid.')
+      : print('The signature is not valid!');
 }

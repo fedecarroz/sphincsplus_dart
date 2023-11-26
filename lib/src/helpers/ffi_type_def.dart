@@ -45,3 +45,19 @@ typedef Sign = int Function(
   int mlen,
   Pointer<Uint8> sk,
 );
+
+typedef VerifySignatureFunc = Int32 Function(
+  Pointer<Uint8> m,
+  Pointer<Uint64> mlen,
+  Pointer<Uint8> sm,
+  Uint64 smlen,
+  Pointer<Uint8> pk,
+);
+
+typedef VerifySignature = int Function(
+  Pointer<Uint8> m,
+  Pointer<Uint64> mlen,
+  Pointer<Uint8> sm,
+  int smlen,
+  Pointer<Uint8> pk,
+);
