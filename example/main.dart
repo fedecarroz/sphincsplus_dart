@@ -10,16 +10,25 @@ void main() {
   print('Seed len: ${spxSigner.seedLength}');
   print('Signature len: ${spxSigner.signatureLength}');
 
+  final String seed = 'Z6ZD2dYrgrAAhkT0K0LqRR72WFDqTDAwXprtkypmgZ6WdMVU';
   final Uint8List publicKey, secretKey;
-  (publicKey, secretKey) = spxSigner.generateKeyPair(seed: 16);
+  (publicKey, secretKey) = spxSigner.generateKeyPair(seed: seed);
   print('Public key: $publicKey');
   print('Secret key: $secretKey');
 
   final String message = 'SPHINCS+ for dart';
-  final Uint8List signedMessage = spxSigner.sign(message, secretKey);
-  print('Signed message: ${signedMessage.length}');
+  final Uint8List signedMessage = spxSigner.sign(
+    message: message,
+    secretKey: secretKey,
+  );
+  print('Signed message: $signedMessage');
 
-  spxSigner.verify(message, signedMessage, publicKey)
+  final bool result = spxSigner.verify(
+    message: message,
+    signedMessage: signedMessage,
+    publicKey: publicKey,
+  );
+  result
       ? print('The signature is valid.')
       : print('The signature is not valid!');
 }

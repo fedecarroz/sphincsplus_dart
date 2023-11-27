@@ -28,7 +28,10 @@ class SpxSigner {
   int get seedLength => ffiSimpleIntFunc(_lib, 'crypto_sign_seedbytes');
 
   /// Generates a SPHINCS+ key pair (public key, secret key)
-  (Uint8List, Uint8List) generateKeyPair({int? seed}) {
+  (Uint8List, Uint8List) generateKeyPair({String? seed}) {
+    if (seed != null && seed.length != seedLength) {
+      throw Exception('Invalid seed length!');
+    }
     final Pointer<Uint8> pkPointer = calloc.allocate<Uint8>(pkLength);
     final Pointer<Uint8> skPointer = calloc.allocate<Uint8>(skLength);
 
@@ -38,7 +41,10 @@ class SpxSigner {
         'crypto_sign_seed_keypair',
       );
       final Pointer<Uint8> seedPointer = calloc.allocate<Uint8>(seedLength);
-      seedPointer.value = seed;
+      final Uint8List seedBytes = utf8.encode(seed);
+      for (var i = 0; i < seedLength; i++) {
+        seedPointer[i] = seedBytes[i];
+      }
       fn(pkPointer, skPointer, seedPointer);
       calloc.free(seedPointer);
     } else {
@@ -48,8 +54,8 @@ class SpxSigner {
       fn(pkPointer, skPointer);
     }
 
-    final Uint8List pk = pkPointer.asTypedList(pkLength);
-    final Uint8List sk = skPointer.asTypedList(skLength);
+    final pk = Uint8List.fromList(pkPointer.asTypedList(pkLength));
+    final sk = Uint8List.fromList(skPointer.asTypedList(skLength));
 
     calloc
       ..free(pkPointer)
@@ -59,14 +65,17 @@ class SpxSigner {
   }
 
   /// Returns the signed message
-  Uint8List sign(String message, Uint8List secretKey) {
+  Uint8List sign({
+    required String message,
+    required Uint8List secretKey,
+  }) {
     if (secretKey.length != skLength) {
       throw Exception('Invalid secret key!');
     }
     final int mLength = message.length;
     final int smLength = mLength + signatureLength;
 
-    final Pointer<Uint64> smlen = calloc.allocate<Uint64>(sizeOf<Uint64>());
+    final Pointer<Uint64> smlen = calloc.allocate<Uint64>(1);
     smlen.value = smLength;
 
     final Pointer<Uint8> sm = calloc.allocate<Uint8>(smLength);
@@ -85,7 +94,8 @@ class SpxSigner {
     final fn = _lib.lookupFunction<SignFunc, Sign>('crypto_sign');
     fn(sm, smlen, m, mLength, sk);
 
-    final Uint8List signedMessage = sm.asTypedList(smLength);
+    final Uint8List signedMessage =
+        Uint8List.fromList(sm.asTypedList(smLength));
 
     calloc
       ..free(sm)
@@ -97,12 +107,11 @@ class SpxSigner {
   }
 
   /// Verifies a given signed message under a given public key
-  // TODO: fix "signature not valid error"
-  bool verify(
-    String message,
-    Uint8List signedMessage,
-    Uint8List publicKey,
-  ) {
+  bool verify({
+    required String message,
+    required Uint8List signedMessage,
+    required Uint8List publicKey,
+  }) {
     final int mLength = message.length;
     final int smLength = mLength + signatureLength;
     if (signedMessage.length != smLength) {
@@ -112,7 +121,7 @@ class SpxSigner {
       throw Exception('Invalid public key!');
     }
 
-    final Pointer<Uint64> mlen = calloc.allocate<Uint64>(sizeOf<Uint64>());
+    final Pointer<Uint64> mlen = calloc.allocate<Uint64>(1);
     mlen.value = mLength;
 
     final Pointer<Uint8> m = calloc.allocate<Uint8>(mLength);
@@ -134,6 +143,7 @@ class SpxSigner {
     final fn = _lib.lookupFunction<VerifySignatureFunc, VerifySignature>(
       'crypto_sign_open',
     );
+
     int result = fn(m, mlen, sm, smLength, pk);
 
     calloc
