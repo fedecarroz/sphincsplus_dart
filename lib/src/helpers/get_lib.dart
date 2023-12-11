@@ -2,7 +2,7 @@ import 'dart:ffi';
 import 'dart:io' show Directory;
 
 import 'package:path/path.dart' as path;
-import 'package:sphincsplus/sphincsplus_dart.dart';
+import 'package:sphincsplus/sphincsplus.dart';
 
 DynamicLibrary getLib(Params params) {
   final libraryPath = path.join(

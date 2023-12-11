@@ -1,6 +1,6 @@
 import 'dart:typed_data';
 
-import 'package:sphincsplus/sphincsplus_dart.dart';
+import 'package:sphincsplus/sphincsplus.dart';
 
 void main() {
   final SpxSigner spxSigner = SpxSigner(params: Params.haraka_128f);

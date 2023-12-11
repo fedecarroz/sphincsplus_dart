@@ -3,7 +3,7 @@ import 'dart:ffi';
 import 'dart:typed_data';
 
 import 'package:ffi/ffi.dart';
-import 'package:sphincsplus/sphincsplus_dart.dart';
+import 'package:sphincsplus/sphincsplus.dart';
 
 class SpxSigner {
   /// Signer parameters
